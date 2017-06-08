@@ -1,0 +1,29 @@
+--------------------------------------------------
+------$overwrite_table for union and overwrite
+--------------------------------------------------
+DROP TABLE IF EXISTS $overwrite_table;
+
+CREATE TABLE IF NOT EXISTS $overwrite_table
+( 
+  $columns
+) 
+PARTITIONED BY (partitionid STRING)
+STORED AS ORC;
+
+INSERT OVERWRITE TABLE $overwrite_table PARTITION (partitionid)
+SELECT $column_names 
+FROM (
+  SELECT * FROM
+  (
+    SELECT *, RANK() OVER (PARTITION BY rowid ORDER BY insert_time DESC) rank
+    FROM 
+    (
+      SELECT * FROM $base_table
+      UNION ALL
+      SELECT * FROM $update_table
+    ) union_result
+  ) rank_result WHERE rank = 1
+) result;
+
+SELECT partitionid, count(1) FROM $overwrite_table GROUP BY partitionid;
+SELECT partitionid, count(1) FROM $overwrite_table GROUP BY partitionid;

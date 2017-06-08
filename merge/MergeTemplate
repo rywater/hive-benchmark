@@ -1,0 +1,30 @@
+--------------------------------------------
+-----$merge_table for ACID MERGE
+--------------------------------------------
+DROP TABLE IF EXISTS $merge_table;
+CREATE TABLE IF NOT EXISTS $merge_table
+( 
+  $columns
+)
+PARTITIONED BY (partitionid STRING)
+CLUSTERED BY ($merge_cluster_column) INTO $merge_buckets BUCKETS
+STORED AS ORC TBLPROPERTIES('transactional'='true');
+
+-- for ACID tables, cannot insert overwrite but can insert into
+INSERT INTO TABLE $merge_table PARTITION (partitionid)
+SELECT * FROM $base_table WHERE partitionid = partitionid
+DISTRIBUTE BY(partitionid);
+
+
+MERGE INTO $merge_table as T
+USING $update_table as S
+ON T.rowid = S.rowid
+WHEN MATCHED AND $match_statement
+WHEN MATCHED AND S.col0 IS NULL THEN DELETE
+WHEN NOT MATCHED THEN INSERT VALUES
+(
+  $column_names
+);
+
+SELECT partitionid, count(1) FROM $merge_table GROUP BY partitionid;
+SELECT partitionid, count(1) FROM $merge_table GROUP BY partitionid;
